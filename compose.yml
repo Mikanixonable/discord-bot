@@ -1,0 +1,18 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    init: true
+    volumes:
+      # persona.mdをビルドなしで差し替え可能にするため config/ をボリュームマウント
+      - ./config:/app/config:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Docker上で実行する場合、Ollama等ホスト上のローカルLLMへは
+    # localhost ではなく host.docker.internal でアクセスする必要がある。
+    # .env の LLM_BASE_URL を以下のように設定すること:
+    #   LLM_BASE_URL=http://host.docker.internal:11434/v1

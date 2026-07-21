@@ -75,6 +75,42 @@ npm start
 
 `config/persona.md` を編集することで、ボットの口調や性格をカスタマイズできます。このファイルの内容はそのままLLMへのシステムプロンプトとして使われます。
 
+## Docker運用
+
+Dockerを使ってボットを起動・運用することもできます。
+
+### 起動
+
+```
+docker compose up -d --build
+```
+
+### ログ確認
+
+```
+docker compose logs -f
+```
+
+### persona.mdの変更
+
+`config/persona.md` はボリュームマウントされているため、編集後は再ビルド不要で、コンテナの再起動のみで反映されます。
+
+```
+docker compose restart bot
+```
+
+### 環境変数 (LLM_BASE_URL) について
+
+Dockerコンテナ内からホストマシン上のOllama等 (`http://localhost:11434`) へ接続する場合、`localhost` はコンテナ自身を指してしまうため到達できません。`.env` の `LLM_BASE_URL` を以下のように設定してください。
+
+```
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+```
+
+### Docker Desktopの自動起動設定
+
+Windows起動時にDocker Desktopを自動起動し、ボットも自動的に立ち上がるようにするには、Docker Desktopの設定 (Settings > General) で「Start Docker Desktop when you sign in to your computer」を有効にしてください。`compose.yml` では `restart: unless-stopped` を設定しているため、Docker Desktop起動後はコンテナも自動的に再起動されます。
+
 ## ディレクトリ構成
 
 ```

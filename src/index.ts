@@ -66,3 +66,22 @@ client.on("messageCreate", async (message) => {
 });
 
 client.login(config.discordToken);
+
+function setupGracefulShutdown(): void {
+  const shutdown = async (signal: string) => {
+    console.log(`${signal} を受信しました。シャットダウンします...`);
+    try {
+      await client.destroy();
+      console.log("クライアントを正常に破棄しました。");
+    } catch (err) {
+      console.error("シャットダウン処理中にエラーが発生しました:", err);
+    } finally {
+      process.exit(0);
+    }
+  };
+
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+}
+
+setupGracefulShutdown();
