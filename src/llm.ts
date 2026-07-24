@@ -1,4 +1,14 @@
+import { Agent } from "undici";
 import { config } from "./config.js";
+
+/**
+ * ローカルLLMは生成に数分かかることがあり、undiciのデフォルトheadersTimeout(5分)を
+ * 超えると HeadersTimeoutError で失敗するため、長めのタイムアウトを設定したdispatcherを使う。
+ */
+const dispatcher = new Agent({
+  headersTimeout: 10 * 60 * 1000,
+  bodyTimeout: 10 * 60 * 1000,
+});
 
 export type ChatRole = "system" | "user" | "assistant";
 
@@ -52,7 +62,8 @@ async function chatCompletionRequest(messages: ChatMessage[]): Promise<string> {
       messages,
       stream: false,
     }),
-  });
+    dispatcher,
+  } as RequestInit & { dispatcher: Agent });
 
   if (!res.ok) {
     const bodyText = await res.text().catch(() => "");
