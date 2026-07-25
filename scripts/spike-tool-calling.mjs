@@ -40,7 +40,7 @@ const body = {
   tools,
   tool_choice: "auto",
   stream: false,
-  max_tokens: 512,
+  max_tokens: 4096
 };
 
 console.log(`POST ${baseUrl}/chat/completions  (model=${model})`);

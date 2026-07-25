@@ -123,7 +123,7 @@ Windows起動時にDocker Desktopを自動起動し、ボットも自動的に�
    ```
 2. `.env` に以下を設定する (compose内はサービス名で到達)。
    ```
-   SEARXNG_URL=http://searxng:8080
+   SEARXNG_URL=http://searxng:8088
    ```
 3. 起動する。
    ```
@@ -131,10 +131,10 @@ Windows起動時にDocker Desktopを自動起動し、ボットも自動的に�
    ```
 4. 動作確認 (ホストから)。JSONが返れば成功。
    ```
-   curl "http://localhost:8080/search?q=test&format=json"
+   curl "http://localhost:8088search?q=test&format=json"
    ```
 
-ホストで直接 `npm run dev` する場合は `SEARXNG_URL=http://localhost:8080` を使い、SearXNG だけ `docker compose up -d searxng` で起動しておく。
+ホストで直接 `npm run dev` する場合は `SEARXNG_URL=http://localhost:8088 を使い、SearXNG だけ `docker compose up -d searxng` で起動しておく。
 
 Tavily を使う場合は `SEARXNG_URL` を空にして `.env` に `TAVILY_API_KEY` を設定する (SearXNG 優先)。
 
