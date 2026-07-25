@@ -12,6 +12,7 @@ import { indexDiscordMessage } from "./tools/messages/index.js";
 import { initMemoryStore } from "./memory/store.js";
 import { consolidateChannel } from "./memory/consolidate.js";
 import { statusText } from "./status.js";
+import { maybeReactOctopus } from "./reaction.js";
 
 const client = new Client({
   intents: [
@@ -131,12 +132,22 @@ client.on("messageCreate", async (message) => {
     console.error("メッセージ索引への記録に失敗:", err);
   }
 
+  // 自動返信チャンネルの全メッセージに対して好意判定→🐙リアクション(バックグラウンド)
+  if (!message.author.bot && config.autoReplyChannelIds.has(message.channelId)) {
+    void maybeReactOctopus(message);
+  }
+
   // 進捗ステータス用メッセージ(catchでも後始末できるようハンドラスコープで保持)
   const statusRef: { msg: Message | null } = { msg: null };
 
   try {
     const trigger = shouldRespond(message);
     if (!trigger) return;
+
+    // メンション経由かつ自動返信チャンネル外 → 好意判定(auto-replyチャンネルは上で済み)
+    if (trigger === "mention" && !config.autoReplyChannelIds.has(message.channelId)) {
+      void maybeReactOctopus(message);
+    }
 
     if (!("sendTyping" in message.channel)) return;
 
