@@ -46,12 +46,20 @@ const SHORTCODE_PATTERN = /(?<!<a?):([A-Za-z0-9_]+):/g;
 // 完成した絵文字トークンを直接囲むバッククォートを除去して描画されるようにする。
 const WRAPPED_EMOJI_PATTERN = /`+(<a?:[A-Za-z0-9_]+:\d+>)`+/g;
 
+// モデルが id を欠いた不正な "<:name:>" や "<:name>" を出すことがある。
+// これらは描画されないので ":name:" に正規化してから通常変換に載せる。
+// 正しい "<:name:id>"(id=数字)は id の直前に ":"+数字が来るためマッチしない。
+const MALFORMED_EMOJI_PATTERN = /<(a?):([A-Za-z0-9_]+):?>/g;
+
 /**
  * テキスト中の ":name:" をDiscordの絵文字表記("<:name:id>" / "<a:name:id>")に置換する。
  * マップに存在しない名前はそのまま残す。展開後、絵文字を囲むバッククォートは除去する。
  */
 export function replaceEmojiShortcodes(text: string): string {
-  const expanded = text.replace(SHORTCODE_PATTERN, (match, name: string) => {
+  // id無しの不正な絵文字表記を ":name:" に正規化する
+  const normalized = text.replace(MALFORMED_EMOJI_PATTERN, ":$2:");
+
+  const expanded = normalized.replace(SHORTCODE_PATTERN, (match, name: string) => {
     const info = emojiMap.get(name);
     if (!info) return match;
     return info.animated ? `<a:${name}:${info.id}>` : `<:${name}:${info.id}>`;
