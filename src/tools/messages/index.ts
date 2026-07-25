@@ -2,6 +2,7 @@ import type { Message } from "discord.js";
 import { config } from "../../config.js";
 import type { ToolDefinition } from "../../llm.js";
 import { indexMessage, searchMessages, type MessageHit } from "./db.js";
+import { getMessageText } from "../../message-text.js";
 
 /** モデルに渡す search_messages ツールの定義。 */
 export const searchMessagesTool: ToolDefinition = {
@@ -70,14 +71,15 @@ export async function executeMessageSearch(args: unknown): Promise<string> {
  * Discordメッセージを検索インデックスに登録する。本文が空なら何もしない。
  */
 export function indexDiscordMessage(msg: Message): void {
-  if (!msg.content || msg.content.trim() === "") return;
+  const content = getMessageText(msg);
+  if (content.trim() === "") return;
   indexMessage({
     id: msg.id,
     channelId: msg.channelId,
     guildId: msg.guildId ?? null,
     authorId: msg.author.id,
     authorName: msg.author.displayName ?? msg.author.username,
-    content: msg.content,
+    content,
     createdAt: msg.createdTimestamp,
   });
 }

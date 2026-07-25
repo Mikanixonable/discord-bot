@@ -6,6 +6,7 @@ import { getEmojiListForPrompt } from "./emoji.js";
 import { getWebSearchProvider } from "./tools/search/provider.js";
 import { getAvailableTools, executeTool } from "./tools/index.js";
 import { getMemoryContext } from "./memory/store.js";
+import { getMessageText } from "./message-text.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
@@ -88,8 +89,9 @@ async function fetchRecentHistory(
   );
 
   const lines = sorted
-    .filter((m) => m.content && m.content.trim() !== "")
-    .map((m) => `${m.author.displayName ?? m.author.username}: ${m.content}`);
+    .map((m) => ({ name: m.author.displayName ?? m.author.username, text: getMessageText(m) }))
+    .filter((m) => m.text.trim() !== "")
+    .map((m) => `${m.name}: ${m.text}`);
 
   // 新しい方から文字数を積算し、maxCharsを超える古いメッセージは切り捨てる
   const included: string[] = [];
@@ -144,7 +146,7 @@ async function buildRequest(
   const memoryBlock = memoryContext ? `${memoryContext}\n\n` : "";
 
   // プロンプトに含まれるDiscordリンク(トリガー本文+履歴)を解決して文脈に加える
-  const scanText = `${history.join("\n")}\n${triggerMessage.content}`;
+  const scanText = `${history.join("\n")}\n${getMessageText(triggerMessage)}`;
   const linkedMessages = await resolveLinkedMessages(triggerMessage, scanText);
   const linkedBlock =
     linkedMessages.length > 0 ? `参照されているメッセージ:\n${linkedMessages.join("\n")}\n\n` : "";
