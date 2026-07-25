@@ -170,12 +170,15 @@ async function runToolLoop(
           args = {};
         }
 
+        console.log(`[tool] 呼び出し: ${call.function.name} args=${call.function.arguments}`);
         let result: string;
         try {
           result = await executeTool(call.function.name, args);
         } catch (err) {
+          console.error(`[tool] 実行失敗: ${call.function.name}`, err);
           result = `ツール実行に失敗しました: ${err instanceof Error ? err.message : String(err)}`;
         }
+        console.log(`[tool] 結果: ${result.slice(0, 300)}`);
 
         messages.push({
           role: "tool",

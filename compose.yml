@@ -31,10 +31,11 @@ services:
       # uwsgi.ini 等を書き込むため rw にする
       - ./searxng:/etc/searxng:rw
     ports:
-      # ホストからの動作確認用(curl等)。bot からの通信はサービス名で行うため必須ではない
-      - "8080:8080"
+      # ホストからの動作確認用(curl等)。左がホスト側、右はコンテナ内の待受(8080固定)。
+      # bot からの通信はサービス名 http://searxng:8080 で行うため、この公開自体は必須ではない
+      - "8088:8080"
     environment:
-      - SEARXNG_BASE_URL=http://localhost:8080/
+      - SEARXNG_BASE_URL=http://localhost:8088/
     logging:
       driver: json-file
       options:
