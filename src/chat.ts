@@ -9,6 +9,20 @@ import { getMemoryContext } from "./memory/store.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
+/** 現在の日本時間(JST)を「YYYY年M月D日(曜) HH:MM」形式で返す。 */
+function currentJstString(): string {
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
 // Discordメッセージリンク: https://discord.com/channels/{guild}/{channel}/{message}
 const DISCORD_LINK_RE =
   /https?:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/channels\/(?:\d+|@me)\/(\d+)\/(\d+)/g;
@@ -110,6 +124,9 @@ async function buildRequest(
     emojiList.length > 0
       ? `${persona}\n\n使用可能なサーバー絵文字（文中にそのまま :name: と書けば実際の絵文字に変換される。バッククォートやコードブロックで囲まないこと。使いすぎない）: ${emojiList}`
       : persona;
+
+  // 現在の日本時間をシステムプロンプトに入れる(コンテナのTZに依存しないよう明示)
+  systemContent += `\n\n現在の日本時間: ${currentJstString()}`;
 
   // Web検索が有効なら、function callingで調べてから答えるよう指示を追加する
   if (getWebSearchProvider()) {
