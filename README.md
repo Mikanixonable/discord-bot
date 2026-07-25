@@ -111,6 +111,33 @@ LLM_BASE_URL=http://host.docker.internal:11434/v1
 
 Windows起動時にDocker Desktopを自動起動し、ボットも自動的に立ち上がるようにするには、Docker Desktopの設定 (Settings > General) で「Start Docker Desktop when you sign in to your computer」を有効にしてください。`compose.yml` では `restart: unless-stopped` を設定しているため、Docker Desktop起動後はコンテナも自動的に再起動されます。
 
+## Web検索の有効化 (SearXNG)
+
+ボットは `web_search` ツール (function calling) で一般Web検索を行えます。`SEARXNG_URL` か `TAVILY_API_KEY` のどちらかが設定されている場合のみ有効になり、未設定なら通常応答します。
+
+`compose.yml` にはセルフホストの SearXNG サービスが含まれています。有効化手順:
+
+1. `searxng/settings.yml` の `server.secret_key` をランダムな文字列に差し替える。
+   ```
+   openssl rand -hex 32
+   ```
+2. `.env` に以下を設定する (compose内はサービス名で到達)。
+   ```
+   SEARXNG_URL=http://searxng:8080
+   ```
+3. 起動する。
+   ```
+   docker compose up -d --build
+   ```
+4. 動作確認 (ホストから)。JSONが返れば成功。
+   ```
+   curl "http://localhost:8080/search?q=test&format=json"
+   ```
+
+ホストで直接 `npm run dev` する場合は `SEARXNG_URL=http://localhost:8080` を使い、SearXNG だけ `docker compose up -d searxng` で起動しておく。
+
+Tavily を使う場合は `SEARXNG_URL` を空にして `.env` に `TAVILY_API_KEY` を設定する (SearXNG 優先)。
+
 ## ディレクトリ構成
 
 ```

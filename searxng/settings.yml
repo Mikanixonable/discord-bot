@@ -1,0 +1,15 @@
+# SearXNG 設定（デフォルト設定を継承し、bot からのJSON API利用に必要な項目だけ上書き）
+use_default_settings: true
+
+server:
+  # 必須。適当なランダム文字列に差し替えること（例: `openssl rand -hex 32`）
+  secret_key: "CHANGE_ME_TO_A_RANDOM_SECRET"
+  # bot からの自動アクセスを弾かないようレートリミッタ/ボット検出を無効化（プライベート運用前提）
+  limiter: false
+  image_proxy: false
+
+search:
+  # 既定はHTMLのみ。bot が使う JSON 出力を有効化する（これが無いと format=json が403）
+  formats:
+    - html
+    - json

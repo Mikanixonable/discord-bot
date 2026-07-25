@@ -4,6 +4,8 @@ services:
     env_file: .env
     restart: unless-stopped
     init: true
+    depends_on:
+      - searxng
     volumes:
       # persona.mdをビルドなしで差し替え可能にするため config/ をボリュームマウント
       - ./config:/app/config:ro
@@ -16,3 +18,25 @@ services:
     # localhost ではなく host.docker.internal でアクセスする必要がある。
     # .env の LLM_BASE_URL を以下のように設定すること:
     #   LLM_BASE_URL=http://host.docker.internal:11434/v1
+    # Web検索(SearXNG)へは同じcompose内のサービス名で到達する。.env に:
+    #   SEARXNG_URL=http://searxng:8080
+
+  # 一般Web検索用のセルフホスト メタ検索エンジン
+  searxng:
+    image: searxng/searxng
+    restart: unless-stopped
+    init: true
+    volumes:
+      # settings.yml(JSON出力有効・secret_key設定)をマウント。初回起動時に
+      # uwsgi.ini 等を書き込むため rw にする
+      - ./searxng:/etc/searxng:rw
+    ports:
+      # ホストからの動作確認用(curl等)。bot からの通信はサービス名で行うため必須ではない
+      - "8080:8080"
+    environment:
+      - SEARXNG_BASE_URL=http://localhost:8080/
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
