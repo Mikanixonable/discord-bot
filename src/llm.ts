@@ -72,7 +72,8 @@ function enqueue<T>(task: () => Promise<T>): Promise<T> {
  */
 async function postChat(
   messages: ChatMessage[],
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
+  maxTokens?: number
 ): Promise<ResponseMessage> {
   const url = `${config.llmBaseUrl}/chat/completions`;
 
@@ -80,7 +81,7 @@ async function postChat(
     model: config.llmModel,
     messages,
     stream: false,
-    max_tokens: config.maxTokens,
+    max_tokens: maxTokens ?? config.maxTokens,
   };
   if (tools && tools.length > 0) {
     body.tools = tools;
@@ -111,6 +112,20 @@ async function postChat(
     throw new Error("LLMから応答メッセージが返されませんでした。");
   }
   return message;
+}
+
+/**
+ * ツールなし・非ストリーミングの単発補完。要約など内部処理用。
+ * 応答が空なら空文字を返す(呼び出し側で扱う)。
+ */
+export async function completeOnce(
+  messages: ChatMessage[],
+  maxTokens?: number
+): Promise<string> {
+  return enqueue(async () => {
+    const message = await postChat(messages, undefined, maxTokens);
+    return message.content?.trim() ?? "";
+  });
 }
 
 /** content の増分(delta)を逐次受け取るコールバック。 */

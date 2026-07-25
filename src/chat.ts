@@ -5,6 +5,7 @@ import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
 import { getWebSearchProvider } from "./tools/search/provider.js";
 import { getAvailableTools, executeTool } from "./tools/index.js";
+import { getMemoryContext } from "./memory/store.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
@@ -75,15 +76,18 @@ async function buildRequest(
   // メッセージ検索は常時有効
   systemContent += `\n\nこのサーバーの過去の発言や話題の経緯は search_messages ツールで調べる。ツールを使っても不要な言及はせず、ペルソナは維持する。`;
 
+  // 重層的記憶(長期→短期)を文脈の先頭に注入する
+  const memoryContext = getMemoryContext(triggerMessage.channelId);
+  const memoryBlock = memoryContext ? `${memoryContext}\n\n` : "";
+
+  const userContent =
+    history.length > 0
+      ? `${memoryBlock}これまでの会話:\n${history.join("\n")}\n\n上記の文脈を踏まえて、直近のメッセージに自然に返答してください。`
+      : `${memoryBlock}会話の文脈を踏まえて自然に返答してください。`;
+
   const messages: ChatMessage[] = [
     { role: "system", content: systemContent },
-    {
-      role: "user",
-      content:
-        history.length > 0
-          ? `これまでの会話:\n${history.join("\n")}\n\n上記の文脈を踏まえて、直近のメッセージに自然に返答してください。`
-          : "会話の文脈を踏まえて自然に返答してください。",
-    },
+    { role: "user", content: userContent },
   ];
 
   return { messages, tools: getAvailableTools() };

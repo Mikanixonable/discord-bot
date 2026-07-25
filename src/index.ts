@@ -9,6 +9,8 @@ import {
   deleteMessage,
 } from "./tools/messages/db.js";
 import { indexDiscordMessage } from "./tools/messages/index.js";
+import { initMemoryStore } from "./memory/store.js";
+import { consolidateChannel } from "./memory/consolidate.js";
 
 const client = new Client({
   intents: [
@@ -28,6 +30,7 @@ client.once("clientReady", (readyClient) => {
   buildEmojiMap(readyClient);
 
   initMessageDb();
+  initMemoryStore();
   console.log(`メッセージ索引: ${getIndexedCount()}件`);
   // 履歴のバックフィルはバックグラウンドで(応答をブロックしない)
   void backfillMessages(readyClient);
@@ -152,6 +155,9 @@ client.on("messageCreate", async (message) => {
 
     await generateReplyStream(message, (delta) => segmenter.push(delta));
     await segmenter.flush();
+
+    // 応答後にバックグラウンドで記憶を更新する(応答経路をブロックしない)
+    void consolidateChannel(message.channelId);
   } catch (err) {
     console.error("メッセージ処理中にエラーが発生しました:", err);
     try {

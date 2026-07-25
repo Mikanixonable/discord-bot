@@ -61,8 +61,8 @@ export function initMessageDb(): void {
   `);
 }
 
-// 未初期化なら遅延初期化してDB接続を返す
-function getDb(): Database.Database {
+// 未初期化なら遅延初期化してDB接続を返す。memory等、同一DBを使う他モジュールと接続を共有する
+export function getDb(): Database.Database {
   if (!db) {
     initMessageDb();
   }

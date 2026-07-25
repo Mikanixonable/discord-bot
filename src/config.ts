@@ -60,6 +60,14 @@ export interface Config {
   webSearchResults: number;
   // ツール呼び出しの最大ラウンド数
   maxToolRounds: number;
+  // 短期記憶(要約)の最大文字数
+  memoryShortMaxChars: number;
+  // 長期記憶(圧縮)の最大文字数
+  memoryLongMaxChars: number;
+  // 短期記憶を1回更新するのに必要な新規メッセージ数のしきい値
+  memoryFoldThreshold: number;
+  // 短期記憶を何回更新したら長期記憶を更新するか
+  memoryLongEvery: number;
   // メッセージ全文検索用SQLite DBのファイルパス
   messageDbPath: string;
   // メッセージ検索結果の取得件数
@@ -97,4 +105,12 @@ export const config: Config = {
   backfillChannels: parseChannelIds(process.env.BACKFILL_CHANNELS),
   // 起動時バックフィルで取得するチャンネルごとの最大メッセージ数（デフォルト500）。BACKFILL_MAXで変更可能
   backfillMax: parsePositiveInt(process.env.BACKFILL_MAX, 500),
+  // 短期記憶(要約)の最大文字数（デフォルト800）。MEMORY_SHORT_MAX_CHARSで変更可能
+  memoryShortMaxChars: parsePositiveInt(process.env.MEMORY_SHORT_MAX_CHARS, 800),
+  // 長期記憶(圧縮)の最大文字数（デフォルト400）。MEMORY_LONG_MAX_CHARSで変更可能
+  memoryLongMaxChars: parsePositiveInt(process.env.MEMORY_LONG_MAX_CHARS, 400),
+  // 短期記憶を更新するのに必要な新規メッセージ数（デフォルト15）。MEMORY_FOLD_THRESHOLDで変更可能
+  memoryFoldThreshold: parsePositiveInt(process.env.MEMORY_FOLD_THRESHOLD, 15),
+  // 何回短期記憶を更新したら長期記憶を更新するか（デフォルト5）。MEMORY_LONG_EVERYで変更可能
+  memoryLongEvery: parsePositiveInt(process.env.MEMORY_LONG_EVERY, 5),
 };
