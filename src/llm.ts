@@ -113,51 +113,163 @@ async function postChat(
   return message;
 }
 
-/**
- * ツールなしの単純な chat completion。応答テキストを返す。
- */
-export async function chatCompletion(messages: ChatMessage[]): Promise<string> {
-  return enqueue(async () => {
-    const message = await postChat(messages);
-    const content = message.content?.trim();
-    if (!content) {
-      throw new Error("LLMから空の応答が返されました。");
-    }
-    return content;
-  });
+/** content の増分(delta)を逐次受け取るコールバック。 */
+export type ContentHandler = (delta: string) => void;
+
+interface StreamRoundResult {
+  content: string;
+  toolCalls: ToolCall[];
+  finishReason: string | null;
+}
+
+/** ストリーミングのtool_call組み立て用(index毎に断片を連結する)。 */
+interface PartialToolCall {
+  id: string;
+  name: string;
+  arguments: string;
 }
 
 /**
- * function calling 対応の chat completion。
- * モデルが tool_calls を返す限りツールを実行して結果を積み、最終的なテキスト応答を返す。
+ * /chat/completions を stream:true で1回叩き、content の delta を onContent へ流しつつ、
+ * このラウンドの content 全体・組み立てたtool_calls・finish_reason を返す。
+ * キューには入れない(呼び出し側でenqueueすること)。
  */
-export async function chatCompletionWithTools(
+async function streamRound(
+  messages: ChatMessage[],
+  tools: ToolDefinition[] | undefined,
+  onContent: ContentHandler
+): Promise<StreamRoundResult> {
+  const url = `${config.llmBaseUrl}/chat/completions`;
+
+  const body: Record<string, unknown> = {
+    model: config.llmModel,
+    messages,
+    stream: true,
+    max_tokens: config.maxTokens,
+  };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = "auto";
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.llmApiKey}`,
+    },
+    body: JSON.stringify(body),
+    dispatcher,
+  } as RequestInit & { dispatcher: Agent });
+
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => "");
+    throw new Error(`LLM呼び出しに失敗しました (status=${res.status}): ${errorBody}`);
+  }
+  if (!res.body) {
+    throw new Error("LLMからストリーム応答が返されませんでした。");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let sseBuffer = "";
+  let content = "";
+  const toolMap = new Map<number, PartialToolCall>();
+  let finishReason: string | null = null;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    sseBuffer += decoder.decode(value, { stream: true });
+
+    const lines = sseBuffer.split("\n");
+    sseBuffer = lines.pop() ?? ""; // 行またぎの断片は次回へ持ち越す
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const payload = trimmed.slice(5).trim();
+      if (payload === "" || payload === "[DONE]") continue;
+
+      let json: unknown;
+      try {
+        json = JSON.parse(payload);
+      } catch {
+        continue; // 不完全/非JSONのdataは無視
+      }
+
+      const choice = (json as { choices?: unknown[] }).choices?.[0] as
+        | { delta?: { content?: unknown; tool_calls?: unknown }; finish_reason?: unknown }
+        | undefined;
+      const delta = choice?.delta;
+
+      if (typeof delta?.content === "string" && delta.content.length > 0) {
+        content += delta.content;
+        onContent(delta.content);
+      }
+
+      if (Array.isArray(delta?.tool_calls)) {
+        for (const tc of delta.tool_calls as Array<Record<string, unknown>>) {
+          const index = typeof tc.index === "number" ? tc.index : 0;
+          const fn = tc.function as { name?: unknown; arguments?: unknown } | undefined;
+          const cur = toolMap.get(index) ?? { id: "", name: "", arguments: "" };
+          if (typeof tc.id === "string") cur.id = tc.id;
+          if (typeof fn?.name === "string") cur.name = fn.name;
+          if (typeof fn?.arguments === "string") cur.arguments += fn.arguments;
+          toolMap.set(index, cur);
+        }
+      }
+
+      if (typeof choice?.finish_reason === "string") {
+        finishReason = choice.finish_reason;
+      }
+    }
+  }
+
+  const toolCalls: ToolCall[] = [...toolMap.values()]
+    .filter((c) => c.name.length > 0)
+    .map((c) => ({
+      id: c.id,
+      type: "function",
+      function: { name: c.name, arguments: c.arguments },
+    }));
+
+  return { content, toolCalls, finishReason };
+}
+
+/**
+ * function calling 対応のストリーミング chat completion。
+ * ツール往復を処理し、最終回答の content を delta 単位で onContent へ流す。
+ */
+export async function chatCompletionStream(
   messages: ChatMessage[],
   tools: ToolDefinition[],
-  executeTool: ToolExecutor
-): Promise<string> {
-  return enqueue(() => runToolLoop(messages, tools, executeTool));
+  executeTool: ToolExecutor,
+  onContent: ContentHandler
+): Promise<void> {
+  return enqueue(() => runStreamingToolLoop(messages, tools, executeTool, onContent));
 }
 
-async function runToolLoop(
+async function runStreamingToolLoop(
   baseMessages: ChatMessage[],
   tools: ToolDefinition[],
-  executeTool: ToolExecutor
-): Promise<string> {
+  executeTool: ToolExecutor,
+  onContent: ContentHandler
+): Promise<void> {
   // baseMessages を破壊しないようコピーして往復の履歴を積む
   const messages: ChatMessage[] = [...baseMessages];
+  const useTools = tools.length > 0;
 
   for (let round = 0; round < config.maxToolRounds; round++) {
-    const message = await postChat(messages, tools);
-    const toolCalls = message.tool_calls;
+    const { content, toolCalls } = await streamRound(
+      messages,
+      useTools ? tools : undefined,
+      onContent
+    );
 
-    // ツール呼び出しあり: content が空でも正常系として扱う
-    if (toolCalls && toolCalls.length > 0) {
-      messages.push({
-        role: "assistant",
-        content: message.content ?? "",
-        tool_calls: toolCalls,
-      });
+    // ツール呼び出しあり: 実行して結果を積み、次ラウンドへ
+    if (toolCalls.length > 0) {
+      messages.push({ role: "assistant", content, tool_calls: toolCalls });
 
       for (const call of toolCalls) {
         let args: unknown = {};
@@ -180,29 +292,19 @@ async function runToolLoop(
         }
         console.log(`[tool] 結果: ${result.slice(0, 300)}`);
 
-        messages.push({
-          role: "tool",
-          content: result,
-          tool_call_id: call.id,
-        });
+        messages.push({ role: "tool", content: result, tool_call_id: call.id });
       }
       continue;
     }
 
-    // ツール呼び出しなし: content があれば最終回答
-    const content = message.content?.trim();
-    if (content) {
-      return content;
-    }
-    // content空 かつ tool_calls無し → ループを抜けて最終回答を強制取得
-    break;
+    // ツール呼び出しなし: content は既に onContent で流し終えているので終了
+    return;
   }
 
-  // ラウンド上限到達 or 空応答: tools を外して最終回答を強制的に得る
+  // ラウンド上限到達: tools を外して最終回答を1回で取得し流す
   const finalMessage = await postChat(messages);
   const finalContent = finalMessage.content?.trim();
-  if (!finalContent) {
-    throw new Error("LLMから空の応答が返されました。");
+  if (finalContent) {
+    onContent(finalContent);
   }
-  return finalContent;
 }

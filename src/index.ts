@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Partials, type Message } from "discord.js";
 import { config } from "./config.js";
-import { generateReply, splitForDiscord } from "./chat.js";
+import { generateReplyStream, createParagraphSegmenter, splitForDiscord } from "./chat.js";
 import { buildEmojiMap, replaceEmojiShortcodes } from "./emoji.js";
 
 const client = new Client({
@@ -54,22 +54,23 @@ client.on("messageCreate", async (message) => {
 
     await message.channel.sendTyping();
 
-    const reply = await generateReply(message);
-    const replyWithEmojis = replaceEmojiShortcodes(reply);
-    const chunks = splitForDiscord(replyWithEmojis);
-
-    for (let i = 0; i < chunks.length; i++) {
-      if (i === 0) {
-        // メンション時のみリプライ(ping)を付ける。allowlist自動応答時はメンションなしで送信
-        if (trigger === "mention") {
-          await message.reply(chunks[i]);
+    // 段落(空白行区切り)ごとに順次投稿する。最初の投稿のみ、メンション時はリプライ(ping)。
+    let isFirst = true;
+    const segmenter = createParagraphSegmenter(async (segment) => {
+      const withEmojis = replaceEmojiShortcodes(segment);
+      const chunks = splitForDiscord(withEmojis);
+      for (const chunk of chunks) {
+        if (isFirst && trigger === "mention") {
+          await message.reply(chunk);
         } else if ("send" in message.channel) {
-          await message.channel.send(chunks[i]);
+          await message.channel.send(chunk);
         }
-      } else if ("send" in message.channel) {
-        await message.channel.send(chunks[i]);
+        isFirst = false;
       }
-    }
+    });
+
+    await generateReplyStream(message, (delta) => segmenter.push(delta));
+    await segmenter.flush();
   } catch (err) {
     console.error("メッセージ処理中にエラーが発生しました:", err);
     try {

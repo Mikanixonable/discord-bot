@@ -1,5 +1,5 @@
 import type { Message, TextBasedChannel } from "discord.js";
-import { chatCompletion, chatCompletionWithTools, type ChatMessage } from "./llm.js";
+import { chatCompletionStream, type ChatMessage, type ContentHandler } from "./llm.js";
 import { loadPersona } from "./persona.js";
 import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
@@ -50,9 +50,11 @@ async function fetchRecentHistory(
 }
 
 /**
- * メッセージ履歴とキャラ設定からLLM応答を生成する。
+ * メッセージ履歴とキャラ設定からLLMへ渡すメッセージ列と、使用するツールを組み立てる。
  */
-export async function generateReply(triggerMessage: Message): Promise<string> {
+async function buildRequest(
+  triggerMessage: Message
+): Promise<{ messages: ChatMessage[]; tools: typeof webSearchTool[] }> {
   const persona = loadPersona();
   const history = await fetchRecentHistory(
     triggerMessage.channel,
@@ -83,10 +85,51 @@ export async function generateReply(triggerMessage: Message): Promise<string> {
     },
   ];
 
-  if (searchProvider) {
-    return chatCompletionWithTools(messages, [webSearchTool], executeTool);
-  }
-  return chatCompletion(messages);
+  return { messages, tools: searchProvider ? [webSearchTool] : [] };
+}
+
+/**
+ * LLM応答をストリーミングで生成し、content の増分を onContent へ流す。
+ */
+export async function generateReplyStream(
+  triggerMessage: Message,
+  onContent: ContentHandler
+): Promise<void> {
+  const { messages, tools } = await buildRequest(triggerMessage);
+  await chatCompletionStream(messages, tools, executeTool, onContent);
+}
+
+/**
+ * ストリーミングされる content を空白行(段落境界)ごとに区切ってセグメントとして流す。
+ * push は同期だが、onSegment(投稿)の順序を保つため内部で Promise チェーンにする。
+ */
+export function createParagraphSegmenter(
+  onSegment: (segment: string) => Promise<void>
+): { push: (delta: string) => void; flush: () => Promise<void> } {
+  let buffer = "";
+  let chain: Promise<void> = Promise.resolve();
+
+  const emit = (segment: string): void => {
+    const text = segment.trim();
+    if (text.length === 0) return;
+    chain = chain.then(() => onSegment(text));
+  };
+
+  return {
+    push(delta: string): void {
+      buffer += delta;
+      let idx: number;
+      while ((idx = buffer.indexOf("\n\n")) !== -1) {
+        emit(buffer.slice(0, idx));
+        buffer = buffer.slice(idx + 2);
+      }
+    },
+    async flush(): Promise<void> {
+      emit(buffer);
+      buffer = "";
+      await chain;
+    },
+  };
 }
 
 /**
