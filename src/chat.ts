@@ -30,11 +30,15 @@ const DISCORD_LINK_RE =
 const MAX_LINKED_MESSAGES = 3;
 
 /**
- * トリガーメッセージ本文に含まれるDiscordメッセージリンクを解決し、
- * 参照先の「表示名: 内容」を配列で返す。取得失敗(権限なし/削除済み)は無視する。
+ * 与えられたテキスト(トリガー本文+履歴)に含まれるDiscordメッセージリンクを解決し、
+ * 参照先の「表示名: 内容」を配列で返す。メンションの有無に関わらず、プロンプトに
+ * 含まれるリンクを対象にする。取得失敗(権限なし/削除済み)は無視する。
  */
-async function resolveLinkedMessages(triggerMessage: Message): Promise<string[]> {
-  const matches = [...triggerMessage.content.matchAll(DISCORD_LINK_RE)];
+async function resolveLinkedMessages(
+  triggerMessage: Message,
+  scanText: string
+): Promise<string[]> {
+  const matches = [...scanText.matchAll(DISCORD_LINK_RE)];
   if (matches.length === 0) return [];
 
   const results: string[] = [];
@@ -139,8 +143,9 @@ async function buildRequest(
   const memoryContext = getMemoryContext(triggerMessage.channelId);
   const memoryBlock = memoryContext ? `${memoryContext}\n\n` : "";
 
-  // 本文に含まれるDiscordリンクの参照先を解決して文脈に加える
-  const linkedMessages = await resolveLinkedMessages(triggerMessage);
+  // プロンプトに含まれるDiscordリンク(トリガー本文+履歴)を解決して文脈に加える
+  const scanText = `${history.join("\n")}\n${triggerMessage.content}`;
+  const linkedMessages = await resolveLinkedMessages(triggerMessage, scanText);
   const linkedBlock =
     linkedMessages.length > 0 ? `参照されているメッセージ:\n${linkedMessages.join("\n")}\n\n` : "";
 
