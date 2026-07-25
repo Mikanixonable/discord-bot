@@ -158,6 +158,8 @@ chatCompletionWithTools(messages, tools):
 - 安定して返る → function calling(案3)を本採用。
 - 返らない/壊れる → 案1(ハイブリッド)に切り替え。設計の大半(ソースアダプタ・注入)は流用できる。
 
+**結果(2026-07-25)**: `scripts/spike-tool-calling.mjs` で検証 → ✅ 整形された `tool_calls` が安定して返った。**function calling を本採用で確定**。案1への撤退は不要。
+
 ## 出典
 - [Retrieval as a Decision: Training-Free Adaptive Gating for Efficient RAG (arXiv:2511.09803)](https://arxiv.org/abs/2511.09803)
 - [12 Advanced RAG Techniques: Beyond Naive Retrieval (2026)](https://atlan.com/know/advanced-rag-techniques/)
