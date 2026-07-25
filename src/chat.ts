@@ -35,7 +35,7 @@ export async function generateReply(triggerMessage: Message): Promise<string> {
   const emojiList = getEmojiListForPrompt();
   const systemContent =
     emojiList.length > 0
-      ? `${persona}\n\n使用可能なサーバー絵文字（:name: 形式で書けば実際の絵文字に変換される。使いすぎない）: ${emojiList}`
+      ? `${persona}\n\n使用可能なサーバー絵文字（文中にそのまま :name: と書けば実際の絵文字に変換される。バッククォートやコードブロックで囲まないこと。使いすぎない）: ${emojiList}`
       : persona;
 
   const messages: ChatMessage[] = [

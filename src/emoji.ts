@@ -41,14 +41,21 @@ export function getEmojiListForPrompt(): string {
 // 直前が "<" または "<a" でない ":name:" のみにマッチさせる(Node 20はlookbehind対応)。
 const SHORTCODE_PATTERN = /(?<!<a?):([A-Za-z0-9_]+):/g;
 
+// モデルが絵文字をバッククォート(インラインコード/コードブロック)で囲むと、
+// 展開後もDiscordが絵文字として描画せず文字列のまま表示してしまう。
+// 完成した絵文字トークンを直接囲むバッククォートを除去して描画されるようにする。
+const WRAPPED_EMOJI_PATTERN = /`+(<a?:[A-Za-z0-9_]+:\d+>)`+/g;
+
 /**
  * テキスト中の ":name:" をDiscordの絵文字表記("<:name:id>" / "<a:name:id>")に置換する。
- * マップに存在しない名前はそのまま残す。
+ * マップに存在しない名前はそのまま残す。展開後、絵文字を囲むバッククォートは除去する。
  */
 export function replaceEmojiShortcodes(text: string): string {
-  return text.replace(SHORTCODE_PATTERN, (match, name: string) => {
+  const expanded = text.replace(SHORTCODE_PATTERN, (match, name: string) => {
     const info = emojiMap.get(name);
     if (!info) return match;
     return info.animated ? `<a:${name}:${info.id}>` : `<:${name}:${info.id}>`;
   });
+
+  return expanded.replace(WRAPPED_EMOJI_PATTERN, "$1");
 }
