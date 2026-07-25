@@ -1,7 +1,7 @@
 import { Client, GatewayIntentBits, Partials, type Message } from "discord.js";
 import { config } from "./config.js";
 import { generateReply, splitForDiscord } from "./chat.js";
-import { refreshEmojiNames } from "./emoji.js";
+import { buildEmojiMap, replaceEmojiShortcodes } from "./emoji.js";
 
 const client = new Client({
   intents: [
@@ -17,13 +17,13 @@ client.once("clientReady", (readyClient) => {
   console.log(`ログイン完了: ${readyClient.user.tag}`);
   console.log(`自動返信チャンネル: ${[...config.autoReplyChannelIds].join(", ") || "(なし)"}`);
 
-  refreshEmojiNames(readyClient);
+  buildEmojiMap(readyClient);
 });
 
-// カスタム絵文字の追加/更新/削除に追従して名前一覧を再構築する
-client.on("emojiCreate", () => refreshEmojiNames(client));
-client.on("emojiUpdate", () => refreshEmojiNames(client));
-client.on("emojiDelete", () => refreshEmojiNames(client));
+// カスタム絵文字の追加/更新/削除に追従してマップを再構築する
+client.on("emojiCreate", () => buildEmojiMap(client));
+client.on("emojiUpdate", () => buildEmojiMap(client));
+client.on("emojiDelete", () => buildEmojiMap(client));
 
 type ResponseTrigger = "mention" | "auto" | null;
 
@@ -55,7 +55,8 @@ client.on("messageCreate", async (message) => {
     await message.channel.sendTyping();
 
     const reply = await generateReply(message);
-    const chunks = splitForDiscord(reply);
+    const replyWithEmojis = replaceEmojiShortcodes(reply);
+    const chunks = splitForDiscord(replyWithEmojis);
 
     for (let i = 0; i < chunks.length; i++) {
       if (i === 0) {
