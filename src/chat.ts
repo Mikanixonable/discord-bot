@@ -2,6 +2,7 @@ import type { Message, TextBasedChannel } from "discord.js";
 import { chatCompletion, type ChatMessage } from "./llm.js";
 import { loadPersona } from "./persona.js";
 import { config } from "./config.js";
+import { getEmojiListForPrompt } from "./emoji.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
@@ -31,8 +32,14 @@ export async function generateReply(triggerMessage: Message): Promise<string> {
   const persona = loadPersona();
   const history = await fetchRecentHistory(triggerMessage.channel, config.historyLimit);
 
+  const emojiList = getEmojiListForPrompt();
+  const systemContent =
+    emojiList.length > 0
+      ? `${persona}\n\n使用可能なサーバー絵文字（:name: 形式で書けば実際の絵文字に変換される。使いすぎない）: ${emojiList}`
+      : persona;
+
   const messages: ChatMessage[] = [
-    { role: "system", content: persona },
+    { role: "system", content: systemContent },
     {
       role: "user",
       content:
