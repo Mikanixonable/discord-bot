@@ -21,3 +21,21 @@ discordbotを作りたい。以下の機能を持つことを考えている
 git clone
 npm ci
 npm run dev
+
+web検索
+長期記憶
+モデル変化
+bluesky投稿
+文字アート投稿
+メンションなし
+
+高速化
+
+ログイン完了: namako#2709
+自動返信チャンネル: 1529153962911993966
+メッセージ処理中にエラーが発生しました: Error: LLMから空の応答が返されました。
+    at chatCompletionRequest (D:\lab2\discord-bot\src\llm.ts:77:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+
+絵文字使えるようにしたい

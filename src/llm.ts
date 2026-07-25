@@ -70,7 +70,10 @@ async function chatCompletionRequest(messages: ChatMessage[]): Promise<string> {
     throw new Error(`LLM呼び出しに失敗しました (status=${res.status}): ${bodyText}`);
   }
 
-  const data = (await res.json()) as ChatCompletionResponse;
+  const bodyText = await res.text();
+  console.log("[llm] 生レスポンス:", bodyText);
+
+  const data = JSON.parse(bodyText) as ChatCompletionResponse;
   const content = data.choices?.[0]?.message?.content;
 
   if (!content || content.trim() === "") {

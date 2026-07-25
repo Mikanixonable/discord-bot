@@ -40,3 +40,18 @@ LLM APIのコスト上限(日次要約は毎日確実に課金される。雑談
 MVPスコープを決める(例:メッセージ収集+日次要約投稿のみ)
 技術選定(discord.js/discord.py、DB、LLM API、ホスティング)
 まず「理想の出力例」を一緒に作るところから始めますか?それとも論点のどれかを深掘りしましょうか。
+
+---
+ログの最後の一行が決め手です。
+
+
+Model generated tool calls: []
+これは、LM StudioがこのモデルからのレスポンスをTool Calling(関数呼び出し)として解析しようとした形跡です。しかもn_decoded = 704トークン、truncated = 0とあるので、モデルは704トークンぶんちゃんと生成している(空でも打ち切りでもない)のに、アプリ側に届くmessage.contentは空、というのが実態です。
+
+つまり原因は前回予想した「thinkingでトークンを使い切った」ではなく、LM Studio側のtool-call解析パーサーが、モデルの出力を(こちらはtoolsパラメータを一切送っていないにもかかわらず)関数呼び出し形式として誤って解釈し、本来の回答テキストをcontentではなくtool_calls側(結果的に空配列)に振り分けてしまった可能性が高いです。huihui-qwen3.6のようなfinetune/abliteratedモデルは、チャットテンプレート内に元々関数呼び出し用のトークン列を含んでいることがあり、それがLM Studioのパーサーの誤爆を誘発することがあります。
+
+対処方針
+診断: 生レスポンス全文をログに出す — 現状のコードはcontentしか見ていないので、tool_callsやreasoning_contentに実際のテキストが入っていないか確認する。これで原因を確定できる。
+本命の対策: LM Studio側でこのモデルのTool Use(関数呼び出し)パーサーを無効化 or Prompt Templateを見直す — LM Studioのモデル設定(Developer タブ → モデルのInference設定)に「Tool call parsing」的な項目があれば無効化する。これがコード変更不要で最も確実。
+アプリ側フォールバック — contentが空でtool_callsが空配列の場合、reasoning_contentやtool_calls[].function.argumentsなど他フィールドも見て拾えるものがあれば拾う保険処理を入れる。ただしこれは対症療法なので(2)が本筋。
+まず(1)の診断ログを一時的に仕込んで、実際のレスポンスJSONを見てみましょうか?
