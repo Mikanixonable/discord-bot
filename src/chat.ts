@@ -9,6 +9,48 @@ import { getMemoryContext } from "./memory/store.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
+// Discordメッセージリンク: https://discord.com/channels/{guild}/{channel}/{message}
+const DISCORD_LINK_RE =
+  /https?:\/\/(?:(?:canary|ptb)\.)?discord(?:app)?\.com\/channels\/(?:\d+|@me)\/(\d+)\/(\d+)/g;
+// 1メッセージあたりに解決するリンクの最大数
+const MAX_LINKED_MESSAGES = 3;
+
+/**
+ * トリガーメッセージ本文に含まれるDiscordメッセージリンクを解決し、
+ * 参照先の「表示名: 内容」を配列で返す。取得失敗(権限なし/削除済み)は無視する。
+ */
+async function resolveLinkedMessages(triggerMessage: Message): Promise<string[]> {
+  const matches = [...triggerMessage.content.matchAll(DISCORD_LINK_RE)];
+  if (matches.length === 0) return [];
+
+  const results: string[] = [];
+  const seen = new Set<string>();
+
+  for (const match of matches) {
+    if (results.length >= MAX_LINKED_MESSAGES) break;
+    const channelId = match[1];
+    const messageId = match[2];
+    if (seen.has(messageId)) continue;
+    seen.add(messageId);
+
+    try {
+      const channel = await triggerMessage.client.channels.fetch(channelId);
+      if (!channel || !("messages" in channel) || typeof channel.messages?.fetch !== "function") {
+        continue;
+      }
+      const linked = await channel.messages.fetch(messageId);
+      if (linked.content && linked.content.trim() !== "") {
+        const name = linked.author.displayName ?? linked.author.username;
+        results.push(`${name}: ${linked.content}`);
+      }
+    } catch {
+      // 取得できないリンクは黙って無視する
+    }
+  }
+
+  return results;
+}
+
 /**
  * チャンネルの直近メッセージ履歴を取得し、「ユーザー名: 内容」形式の文字列配列にして返す。
  * 取得順は古い→新しい順に並べ替える。
@@ -80,10 +122,15 @@ async function buildRequest(
   const memoryContext = getMemoryContext(triggerMessage.channelId);
   const memoryBlock = memoryContext ? `${memoryContext}\n\n` : "";
 
+  // 本文に含まれるDiscordリンクの参照先を解決して文脈に加える
+  const linkedMessages = await resolveLinkedMessages(triggerMessage);
+  const linkedBlock =
+    linkedMessages.length > 0 ? `参照されているメッセージ:\n${linkedMessages.join("\n")}\n\n` : "";
+
   const userContent =
     history.length > 0
-      ? `${memoryBlock}これまでの会話:\n${history.join("\n")}\n\n上記の文脈を踏まえて、直近のメッセージに自然に返答してください。`
-      : `${memoryBlock}会話の文脈を踏まえて自然に返答してください。`;
+      ? `${memoryBlock}${linkedBlock}これまでの会話:\n${history.join("\n")}\n\n上記の文脈を踏まえて、直近のメッセージに自然に返答してください。`
+      : `${memoryBlock}${linkedBlock}会話の文脈を踏まえて自然に返答してください。`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemContent },
