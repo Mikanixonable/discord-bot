@@ -2,11 +2,13 @@ import type { ToolDefinition } from "../llm.js";
 import { getWebSearchProvider } from "./search/provider.js";
 import { webSearchTool, executeWebSearch } from "./search/index.js";
 import { searchMessagesTool, executeMessageSearch } from "./messages/index.js";
+import { fetchUrlTool, executeFetchUrl } from "./fetch/index.js";
 
 /**
  * 現在有効なツール定義の一覧を返す。
  * - web_search: SearXNG/Tavily が設定されている場合のみ
  * - search_messages: ローカルインデックスなので常時有効
+ * - fetch_url: 常時有効
  */
 export function getAvailableTools(): ToolDefinition[] {
   const tools: ToolDefinition[] = [];
@@ -14,6 +16,7 @@ export function getAvailableTools(): ToolDefinition[] {
     tools.push(webSearchTool);
   }
   tools.push(searchMessagesTool);
+  tools.push(fetchUrlTool);
   return tools;
 }
 
@@ -26,6 +29,8 @@ export async function executeTool(name: string, args: unknown): Promise<string> 
       return executeWebSearch(args);
     case "search_messages":
       return executeMessageSearch(args);
+    case "fetch_url":
+      return executeFetchUrl(args);
     default:
       return `未知のツール: ${name}`;
   }

@@ -60,6 +60,10 @@ export interface Config {
   webSearchResults: number;
   // ツール呼び出しの最大ラウンド数
   maxToolRounds: number;
+  // fetch_url で取得するページ本文の最大文字数
+  fetchUrlMaxChars: number;
+  // fetch_url のタイムアウト(ミリ秒)
+  fetchUrlTimeoutMs: number;
   // 短期記憶(要約)の最大文字数
   memoryShortMaxChars: number;
   // 長期記憶(圧縮)の最大文字数
@@ -97,6 +101,10 @@ export const config: Config = {
   webSearchResults: parsePositiveInt(process.env.WEB_SEARCH_RESULTS, 4),
   // ツール呼び出しの最大ラウンド数（デフォルト3）。MAX_TOOL_ROUNDSで変更可能
   maxToolRounds: parsePositiveInt(process.env.MAX_TOOL_ROUNDS, 3),
+  // fetch_urlで取得するページ本文の最大文字数（デフォルト4000）。FETCH_URL_MAX_CHARSで変更可能
+  fetchUrlMaxChars: parsePositiveInt(process.env.FETCH_URL_MAX_CHARS, 4000),
+  // fetch_urlのタイムアウト(ミリ秒)（デフォルト10000）。FETCH_URL_TIMEOUT_MSで変更可能
+  fetchUrlTimeoutMs: parsePositiveInt(process.env.FETCH_URL_TIMEOUT_MS, 10000),
   // メッセージ全文検索用SQLite DBのファイルパス。MESSAGE_DB_PATHで変更可能
   messageDbPath: process.env.MESSAGE_DB_PATH || "./data/messages.db",
   // メッセージ検索結果の取得件数（デフォルト5件）。MESSAGE_SEARCH_RESULTSで変更可能

@@ -149,6 +149,8 @@ async function buildRequest(
   }
   // メッセージ検索は常時有効
   systemContent += `\n\nこのサーバーの過去の発言や話題の経緯は search_messages ツールで調べる。ツールを使っても不要な言及はせず、ペルソナは維持する。`;
+  // URL取得は常時有効
+  systemContent += `\n\n会話にURLが貼られていて内容が必要なときは fetch_url ツールでそのページを読んでから答える。`;
 
   // 重層的記憶(長期→短期)を文脈の先頭に注入する
   const memoryContext = getMemoryContext(triggerMessage.channelId);
