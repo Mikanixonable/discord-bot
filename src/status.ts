@@ -1,10 +1,10 @@
 import type { StatusEvent } from "./llm.js";
 
 // 各状態のユーモアあるステータス文候補(ランダムに選ぶ)
-const THINKING = ["思考中", "うんうん唸ってる", "脳内会議中", "考えあぐねてる", "小考中", "熟考の海に潜ってる"];
-const WEB = ["webを検索中", "ネットの海を漁ってる", "ぐぐってる", "インターネットに問い合わせ中", "世界の裏側を覗いてる"];
-const MESSAGES = ["過去ログを検索中", "昔の発言を掘り返してる", "記憶の地層を掘ってる", "ログの海を漁ってる"];
-const FETCH = ["ページを読みに行ってる", "リンク先を覗いてる", "URLの先へ旅立ち中", "そのページを読み込み中"];
+const THINKING = ["思考中", "思索中", "小考中", "熟考中", "脳内会議を招集", "考えあぐね中", "うねり中", "うめき中", "くねり中", "しぼみ中", "棘皮委員会に問い合わせ中", "", "", "marinating", "making things namako", "pona mute", "thinking", "pondering", "contemplating", "cogitating", "seeking star fishes", "becoming namako", "退嬰中"];
+const WEB = ["ねこすい中", "さめすい中", "まくらすい中", "ふとんすい中", "検索中", "internet漁り中", "ぐぐり中", "電電公社に問い合わせ中", "ダークウェブ漁り中", "潜水中"];
+const MESSAGES = ["過去ログを検索中", "昔の発言を掘り返し中", "記憶の地層を採掘中", "ログの海を漁り中"];
+const FETCH = ["ページを閲覧中", "リンク先を覗き中", "URLの先へ旅立ち中", "そのページを読み込み中"];
 
 function pick(list: string[]): string {
   return list[Math.floor(Math.random() * list.length)];
