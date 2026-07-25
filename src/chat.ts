@@ -41,6 +41,7 @@ async function resolveLinkedMessages(
 ): Promise<string[]> {
   const matches = [...scanText.matchAll(DISCORD_LINK_RE)];
   if (matches.length === 0) return [];
+  console.log(`[link] リンクを${matches.length}件検出`);
 
   const results: string[] = [];
   const seen = new Set<string>();
@@ -55,15 +56,23 @@ async function resolveLinkedMessages(
     try {
       const channel = await triggerMessage.client.channels.fetch(channelId);
       if (!channel || !("messages" in channel) || typeof channel.messages?.fetch !== "function") {
+        console.warn(`[link] チャンネル未取得/非対応: ${channelId}`);
         continue;
       }
       const linked = await channel.messages.fetch(messageId);
-      if (linked.content && linked.content.trim() !== "") {
+      const text = getMessageText(linked);
+      if (text.trim() !== "") {
         const name = linked.author.displayName ?? linked.author.username;
-        results.push(`${name}: ${linked.content}`);
+        results.push(`${name}: ${text}`);
+        console.log(`[link] 解決: ${channelId}/${messageId}`);
+      } else {
+        console.log(`[link] 本文空: ${channelId}/${messageId}`);
       }
-    } catch {
-      // 取得できないリンクは黙って無視する
+    } catch (err) {
+      console.error(
+        `[link] 取得失敗 ${channelId}/${messageId}:`,
+        err instanceof Error ? err.message : err
+      );
     }
   }
 
