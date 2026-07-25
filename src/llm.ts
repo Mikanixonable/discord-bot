@@ -61,6 +61,7 @@ async function chatCompletionRequest(messages: ChatMessage[]): Promise<string> {
       model: config.llmModel,
       messages,
       stream: false,
+      max_tokens: config.maxTokens,
     }),
     dispatcher,
   } as RequestInit & { dispatcher: Agent });

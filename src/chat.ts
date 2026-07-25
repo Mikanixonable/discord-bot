@@ -10,7 +10,11 @@ export const DISCORD_MESSAGE_LIMIT = 2000;
  * チャンネルの直近メッセージ履歴を取得し、「ユーザー名: 内容」形式の文字列配列にして返す。
  * 取得順は古い→新しい順に並べ替える。
  */
-async function fetchRecentHistory(channel: TextBasedChannel, limit: number): Promise<string[]> {
+async function fetchRecentHistory(
+  channel: TextBasedChannel,
+  limit: number,
+  maxChars: number
+): Promise<string[]> {
   if (!("messages" in channel) || typeof channel.messages?.fetch !== "function") {
     return [];
   }
@@ -20,9 +24,27 @@ async function fetchRecentHistory(channel: TextBasedChannel, limit: number): Pro
     (a, b) => a.createdTimestamp - b.createdTimestamp
   );
 
-  return sorted
+  const lines = sorted
     .filter((m) => m.content && m.content.trim() !== "")
     .map((m) => `${m.author.displayName ?? m.author.username}: ${m.content}`);
+
+  // 新しい方から文字数を積算し、maxCharsを超える古いメッセージは切り捨てる
+  const included: string[] = [];
+  let total = 0;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    const cost = line.length + 1; // 行間の改行分を含める
+    if (total + cost > maxChars) {
+      if (included.length === 0) {
+        included.push(line.slice(0, maxChars));
+      }
+      break;
+    }
+    included.unshift(line);
+    total += cost;
+  }
+
+  return included;
 }
 
 /**
@@ -30,7 +52,11 @@ async function fetchRecentHistory(channel: TextBasedChannel, limit: number): Pro
  */
 export async function generateReply(triggerMessage: Message): Promise<string> {
   const persona = loadPersona();
-  const history = await fetchRecentHistory(triggerMessage.channel, config.historyLimit);
+  const history = await fetchRecentHistory(
+    triggerMessage.channel,
+    config.historyLimit,
+    config.historyMaxChars
+  );
 
   const emojiList = getEmojiListForPrompt();
   const systemContent =
