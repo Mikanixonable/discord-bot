@@ -11,11 +11,19 @@ services:
       - ./config:/app/config:ro
       # メッセージ検索用SQLite DB(./data/messages.db)をコンテナ再構築後も永続化するためマウント
       - ./data:/app/data
+      # Twitter/Blueskyアーカイブ検索用。ホスト側の参考資料ディレクトリを読み取り専用マウント
+      # Docker環境では .env のパスをコンテナ内パスに合わせること:
+      #   TWITTER_ARCHIVE_PATH=/reference/twitter/data
+      #   BLUESKY_ARCHIVE_PATH=/reference/bluesky/repo.car
+      - D:\lab2\reference\twitter-2026-07-22-9fe1e485cf6b9a8ed3b8107daf69ae9d5bd50c98fb1329257165bf350bc14886:/reference/twitter:ro
+      - D:\lab2\reference\bluesky:/reference/bluesky:ro
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
     # Docker上で実行する場合、Ollama等ホスト上のローカルLLMへは
     # localhost ではなく host.docker.internal でアクセスする必要がある。
     # .env の LLM_BASE_URL を以下のように設定すること:

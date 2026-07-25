@@ -3,6 +3,7 @@ import { getWebSearchProvider } from "./search/provider.js";
 import { webSearchTool, executeWebSearch } from "./search/index.js";
 import { searchMessagesTool, executeMessageSearch } from "./messages/index.js";
 import { fetchUrlTool, executeFetchUrl } from "./fetch/index.js";
+import { searchArchiveTool, executeArchiveSearch, isArchiveConfigured } from "./archive/index.js";
 
 /**
  * 現在有効なツール定義の一覧を返す。
@@ -17,6 +18,9 @@ export function getAvailableTools(): ToolDefinition[] {
   }
   tools.push(searchMessagesTool);
   tools.push(fetchUrlTool);
+  if (isArchiveConfigured()) {
+    tools.push(searchArchiveTool);
+  }
   return tools;
 }
 
@@ -31,6 +35,8 @@ export async function executeTool(name: string, args: unknown): Promise<string> 
       return executeMessageSearch(args);
     case "fetch_url":
       return executeFetchUrl(args);
+    case "search_archive":
+      return executeArchiveSearch(args);
     default:
       return `未知のツール: ${name}`;
   }

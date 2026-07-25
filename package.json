@@ -9,9 +9,12 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@ipld/car": "^5.4.6",
+    "@ipld/dag-cbor": "^10.0.1",
     "better-sqlite3": "^11.10.0",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
+    "multiformats": "^14.0.5",
     "undici": "^6.28.0"
   },
   "devDependencies": {

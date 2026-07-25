@@ -80,6 +80,12 @@ export interface Config {
   backfillChannels: Set<string>;
   // 起動時バックフィルで取得するチャンネルごとの最大メッセージ数
   backfillMax: number;
+  // Twitterアーカイブの data/ ディレクトリパス（未設定ならアーカイブ検索無効）
+  twitterArchivePath: string | null;
+  // Bluesky repo.car のファイルパス（未設定ならアーカイブ検索無効）
+  blueskyArchivePath: string | null;
+  // アーカイブ検索結果の取得件数
+  archiveSearchResults: number;
 }
 
 export const config: Config = {
@@ -121,4 +127,10 @@ export const config: Config = {
   memoryFoldThreshold: parsePositiveInt(process.env.MEMORY_FOLD_THRESHOLD, 15),
   // 何回短期記憶を更新したら長期記憶を更新するか（デフォルト5）。MEMORY_LONG_EVERYで変更可能
   memoryLongEvery: parsePositiveInt(process.env.MEMORY_LONG_EVERY, 5),
+  // Twitterアーカイブのdata/ディレクトリパス。TWITTER_ARCHIVE_PATHで設定
+  twitterArchivePath: parseOptionalString(process.env.TWITTER_ARCHIVE_PATH),
+  // Bluesky repo.carのファイルパス。BLUESKY_ARCHIVE_PATHで設定
+  blueskyArchivePath: parseOptionalString(process.env.BLUESKY_ARCHIVE_PATH),
+  // アーカイブ検索結果の取得件数（デフォルト5件）。ARCHIVE_SEARCH_RESULTSで変更可能
+  archiveSearchResults: parsePositiveInt(process.env.ARCHIVE_SEARCH_RESULTS, 5),
 };

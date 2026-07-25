@@ -13,6 +13,7 @@ import { initMemoryStore } from "./memory/store.js";
 import { consolidateChannel } from "./memory/consolidate.js";
 import { statusText } from "./status.js";
 import { maybeReactOctopus } from "./reaction.js";
+import { loadArchives } from "./tools/archive/index.js";
 
 const client = new Client({
   intents: [
@@ -36,6 +37,8 @@ client.once("clientReady", (readyClient) => {
   console.log(`メッセージ索引: ${getIndexedCount()}件`);
   // 履歴のバックフィルはバックグラウンドで(応答をブロックしない)
   void backfillMessages(readyClient);
+  // アーカイブ(過去のツイート・Bluesky投稿)のインデックスもバックグラウンドで
+  void loadArchives();
 });
 
 // カスタム絵文字の追加/更新/削除に追従してマップを再構築する

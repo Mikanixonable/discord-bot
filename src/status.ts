@@ -2,10 +2,11 @@ import type { StatusEvent } from "./llm.js";
 
 // 各状態のユーモアあるステータス文候補(ランダムに選ぶ)
 const THINKING = ["Baking", "Booping", "Canoodling", "Architecting", "Choreographing", "Composing", "思考中", "思索中", "小考中", "熟考中", "脳内会議を招集", "考えあぐね中", "うねり中", "うめき中", "くねり中", "しぼみ中", "棘皮委員会に問い合わせ中", "Marinating", "Making things namako", "Thinking", "Pondering", "Contemplating", "Cogitating", "Seeking star fishes", "Becoming namako", "退嬰中"];
-const THINKING_EMOJI = [":meow_atamakakae:", ":meow_atamakakae:", ":meow_comfy:", ":meow_confounded:", ":meow_sushiikura:", ":meow_blahaj:"]
+const THINKING_EMOJI = [":meow_atamakakae:", ":meow_aww:", ":meow_atamakakae:", ":meow_comfy:", ":meow_confounded:", ":meow_sushiikura:", ":meow_blahaj:"]
 const WEB = ["ねこすい中", "さめすい中", "まくらすい中", "ふとんすい中", "検索中", "internet漁り中", "ぐぐり中", "電電公社に問い合わせ中", "ダークウェブ漁り中", "潜水中"];
 const MESSAGES = ["過去ログを検索中", "昔の発言を掘り返し中", "記憶の地層を採掘中", "ログの海を漁り中"];
 const FETCH = ["ページを閲覧中", "リンク先を覗き中", "URLの先へ旅立ち中", "そのページを読み込み中"];
+const ARCHIVE = ["過去のツイートを探索中", "アーカイブ漁り中", "黒歴史を発掘中", "タイムラインを遭難中"];
 
 function pick(list: string[]): string {
   return list[Math.floor(Math.random() * list.length)];
@@ -38,6 +39,10 @@ export function statusText(event: StatusEvent): string {
       // 読みに行ったリンクは記録として残すため、URL全体を表示する
       const url = argString(event.args, "url");
       return `-# 📄:meow_blahaj:  ${pick(FETCH)}...${url ? ` ${url}` : ""}`;
+    }
+    case "search_archive": {
+      const q = argString(event.args, "query");
+      return `-# 📦 ${pick(ARCHIVE)}...${q ? `「${q}」` : ""}`;
     }
     default:
       return `-# ⚙️ 作業中...`;

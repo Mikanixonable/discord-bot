@@ -10,6 +10,7 @@ import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
 import { getWebSearchProvider } from "./tools/search/provider.js";
 import { getAvailableTools, executeTool } from "./tools/index.js";
+import { isArchiveConfigured } from "./tools/archive/index.js";
 import { getMemoryContext } from "./memory/store.js";
 import { getMessageText } from "./message-text.js";
 
@@ -156,6 +157,10 @@ async function buildRequest(
   systemContent += `\n\nこのサーバーの過去の発言や話題の経緯は search_messages ツールで調べる。ツールを使っても不要な言及はせず、ペルソナは維持する。`;
   // URL取得は常時有効
   systemContent += `\n\n会話にURLが貼られていて内容が必要なときは fetch_url ツールでそのページを読んでから答える。`;
+  // アーカイブ検索が有効なら指示を追加
+  if (isArchiveConfigured()) {
+    systemContent += `\n\n運営者の過去のツイート(Twitter/X)やBluesky投稿を話題の種にしたいときは search_archive ツールで検索できる。いいねした投稿も含まれる。`;
+  }
 
   // 重層的記憶(長期→短期)を文脈の先頭に注入する
   const memoryContext = getMemoryContext(triggerMessage.channelId);
