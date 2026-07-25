@@ -131,6 +131,12 @@ export async function completeOnce(
 /** content の増分(delta)を逐次受け取るコールバック。 */
 export type ContentHandler = (delta: string) => void;
 
+/** 進捗ステータス(思考中・ツール実行)の通知イベント。 */
+export type StatusEvent =
+  | { kind: "thinking" }
+  | { kind: "tool"; name: string; args: unknown };
+export type StatusHandler = (event: StatusEvent) => void;
+
 interface StreamRoundResult {
   content: string;
   toolCalls: ToolCall[];
@@ -152,7 +158,8 @@ interface PartialToolCall {
 async function streamRound(
   messages: ChatMessage[],
   tools: ToolDefinition[] | undefined,
-  onContent: ContentHandler
+  onContent: ContentHandler,
+  onStatus?: StatusHandler
 ): Promise<StreamRoundResult> {
   const url = `${config.llmBaseUrl}/chat/completions`;
 
@@ -191,6 +198,7 @@ async function streamRound(
   let content = "";
   const toolMap = new Map<number, PartialToolCall>();
   let finishReason: string | null = null;
+  let thinkingNotified = false;
 
   for (;;) {
     const { done, value } = await reader.read();
@@ -214,9 +222,22 @@ async function streamRound(
       }
 
       const choice = (json as { choices?: unknown[] }).choices?.[0] as
-        | { delta?: { content?: unknown; tool_calls?: unknown }; finish_reason?: unknown }
+        | {
+            delta?: { content?: unknown; reasoning_content?: unknown; tool_calls?: unknown };
+            finish_reason?: unknown;
+          }
         | undefined;
       const delta = choice?.delta;
+
+      // 思考(reasoning_content)が始まったら一度だけ「思考中」を通知する
+      if (
+        !thinkingNotified &&
+        typeof delta?.reasoning_content === "string" &&
+        delta.reasoning_content.length > 0
+      ) {
+        thinkingNotified = true;
+        onStatus?.({ kind: "thinking" });
+      }
 
       if (typeof delta?.content === "string" && delta.content.length > 0) {
         content += delta.content;
@@ -260,16 +281,18 @@ export async function chatCompletionStream(
   messages: ChatMessage[],
   tools: ToolDefinition[],
   executeTool: ToolExecutor,
-  onContent: ContentHandler
+  onContent: ContentHandler,
+  onStatus?: StatusHandler
 ): Promise<void> {
-  return enqueue(() => runStreamingToolLoop(messages, tools, executeTool, onContent));
+  return enqueue(() => runStreamingToolLoop(messages, tools, executeTool, onContent, onStatus));
 }
 
 async function runStreamingToolLoop(
   baseMessages: ChatMessage[],
   tools: ToolDefinition[],
   executeTool: ToolExecutor,
-  onContent: ContentHandler
+  onContent: ContentHandler,
+  onStatus?: StatusHandler
 ): Promise<void> {
   // baseMessages を破壊しないようコピーして往復の履歴を積む
   const messages: ChatMessage[] = [...baseMessages];
@@ -279,7 +302,8 @@ async function runStreamingToolLoop(
     const { content, toolCalls } = await streamRound(
       messages,
       useTools ? tools : undefined,
-      onContent
+      onContent,
+      onStatus
     );
 
     // ツール呼び出しあり: 実行して結果を積み、次ラウンドへ
@@ -298,6 +322,7 @@ async function runStreamingToolLoop(
         }
 
         console.log(`[tool] 呼び出し: ${call.function.name} args=${call.function.arguments}`);
+        onStatus?.({ kind: "tool", name: call.function.name, args });
         let result: string;
         try {
           result = await executeTool(call.function.name, args);

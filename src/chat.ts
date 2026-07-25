@@ -1,5 +1,10 @@
 import type { Message, TextBasedChannel } from "discord.js";
-import { chatCompletionStream, type ChatMessage, type ContentHandler } from "./llm.js";
+import {
+  chatCompletionStream,
+  type ChatMessage,
+  type ContentHandler,
+  type StatusHandler,
+} from "./llm.js";
 import { loadPersona } from "./persona.js";
 import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
@@ -180,10 +185,11 @@ async function buildRequest(
  */
 export async function generateReplyStream(
   triggerMessage: Message,
-  onContent: ContentHandler
+  onContent: ContentHandler,
+  onStatus?: StatusHandler
 ): Promise<void> {
   const { messages, tools } = await buildRequest(triggerMessage);
-  await chatCompletionStream(messages, tools, executeTool, onContent);
+  await chatCompletionStream(messages, tools, executeTool, onContent, onStatus);
 }
 
 /**
