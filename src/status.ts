@@ -18,32 +18,25 @@ function argString(args: unknown, key: string): string | null {
   return null;
 }
 
-function hostOf(url: string): string | null {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
-
 /** ステータスイベントを、Discordのsubtext(薄字)で表示する1行に変換する。 */
 export function statusText(event: StatusEvent): string {
   if (event.kind === "thinking") {
-    return `-# 🤔 ${pick(THINKING)}...`;
+    return `-# :meow_atamakakae: ${pick(THINKING)}...`;
   }
 
   switch (event.name) {
     case "web_search": {
       const q = argString(event.args, "query");
-      return `-# 🌐 ${pick(WEB)}...${q ? `「${q}」` : ""}`;
+      return `-# :meow_mac: ${pick(WEB)}...${q ? `「${q}」` : ""}`;
     }
     case "search_messages": {
       const q = argString(event.args, "query");
-      return `-# 🔍 ${pick(MESSAGES)}...${q ? `「${q}」` : ""}`;
+      return `-# :meow_enjoy:🔍 ${pick(MESSAGES)}...${q ? `「${q}」` : ""}`;
     }
     case "fetch_url": {
-      const host = hostOf(argString(event.args, "url") ?? "");
-      return `-# 📄 ${pick(FETCH)}...${host ? ` (${host})` : ""}`;
+      // 読みに行ったリンクは記録として残すため、URL全体を表示する
+      const url = argString(event.args, "url");
+      return `-# 📄:meow_blahaj:  ${pick(FETCH)}...${url ? ` ${url}` : ""}`;
     }
     default:
       return `-# ⚙️ 作業中...`;

@@ -142,9 +142,14 @@ client.on("messageCreate", async (message) => {
 
     await message.channel.sendTyping();
 
-    // 進捗ステータス(薄字のsubtext)を1つのメッセージで表示・更新し、本文が出たら消す
+    // 進捗ステータス(薄字のsubtext)を1つのメッセージに積み上げて表示する。
+    // 本文が出ても消さず、思考・検索・読んだリンクの記録として残す。
+    const statusLines: string[] = [];
     let statusChain: Promise<void> = Promise.resolve();
-    const updateStatus = (text: string): void => {
+    const addStatus = (line: string): void => {
+      statusLines.push(line);
+      // ステータス文中のカスタム絵文字(:name:)も描画されるよう変換する
+      const text = replaceEmojiShortcodes(statusLines.join("\n"));
       statusChain = statusChain.then(async () => {
         try {
           if (statusRef.msg) {
@@ -157,25 +162,10 @@ client.on("messageCreate", async (message) => {
         }
       });
     };
-    const clearStatus = async (): Promise<void> => {
-      await statusChain;
-      if (statusRef.msg) {
-        try {
-          await statusRef.msg.delete();
-        } catch {
-          // 既に消えている等は無視
-        }
-        statusRef.msg = null;
-      }
-    };
 
     // 段落(空白行区切り)ごとに順次投稿する。最初の投稿のみ、メンション時はリプライ(ping)。
     let isFirst = true;
     const segmenter = createParagraphSegmenter(async (segment) => {
-      if (isFirst) {
-        // 本文が出始めたらステータスを消す
-        await clearStatus();
-      }
       const withEmojis = replaceEmojiShortcodes(segment);
       const chunks = splitForDiscord(withEmojis);
       for (const chunk of chunks) {
@@ -191,23 +181,17 @@ client.on("messageCreate", async (message) => {
     await generateReplyStream(
       message,
       (delta) => segmenter.push(delta),
-      (event) => updateStatus(statusText(event))
+      (event) => addStatus(statusText(event))
     );
     await segmenter.flush();
-    await clearStatus();
+    // ステータス(思考・検索・読んだリンクの記録)は消さずに残す
+    await statusChain;
 
     // 応答後にバックグラウンドで記憶を更新する(応答経路をブロックしない)
     void consolidateChannel(message.channelId);
   } catch (err) {
     console.error("メッセージ処理中にエラーが発生しました:", err);
-    // 残っているステータス表示を消す
-    if (statusRef.msg) {
-      try {
-        await statusRef.msg.delete();
-      } catch {
-        // 無視
-      }
-    }
+    // ステータスは記録として残す(削除しない)
     try {
       if ("send" in message.channel) {
         await message.channel.send("ごめん、ちょっとエラーが起きちゃった…もう一回試してみて。");
