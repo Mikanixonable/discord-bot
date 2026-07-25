@@ -16,28 +16,30 @@ client.once("clientReady", (readyClient) => {
   console.log(`自動返信チャンネル: ${[...config.autoReplyChannelIds].join(", ") || "(なし)"}`);
 });
 
-function shouldRespond(message: Message): boolean {
+type ResponseTrigger = "mention" | "auto" | null;
+
+function shouldRespond(message: Message): ResponseTrigger {
   // bot自身や他のbotのメッセージは無視
-  if (message.author.bot) return false;
+  if (message.author.bot) return null;
 
-  // allowlistに含まれるチャンネル/スレッドでは全メッセージに応答
-  if (config.autoReplyChannelIds.has(message.channelId)) return true;
-
-  // それ以外はbotへのメンション時のみ応答
-  // @everyone やロールメンションでは反応しない(bot個人への直接メンションのみ)
+  // botへの直接メンションが最優先(@everyone やロールメンションでは反応しない)
   if (
     client.user &&
     message.mentions.has(client.user, { ignoreEveryone: true, ignoreRoles: true })
   ) {
-    return true;
+    return "mention";
   }
 
-  return false;
+  // allowlistに含まれるチャンネル/スレッドでは全メッセージに応答
+  if (config.autoReplyChannelIds.has(message.channelId)) return "auto";
+
+  return null;
 }
 
 client.on("messageCreate", async (message) => {
   try {
-    if (!shouldRespond(message)) return;
+    const trigger = shouldRespond(message);
+    if (!trigger) return;
 
     if (!("sendTyping" in message.channel)) return;
 
@@ -48,7 +50,12 @@ client.on("messageCreate", async (message) => {
 
     for (let i = 0; i < chunks.length; i++) {
       if (i === 0) {
-        await message.reply(chunks[i]);
+        // メンション時のみリプライ(ping)を付ける。allowlist自動応答時はメンションなしで送信
+        if (trigger === "mention") {
+          await message.reply(chunks[i]);
+        } else if ("send" in message.channel) {
+          await message.channel.send(chunks[i]);
+        }
       } else if ("send" in message.channel) {
         await message.channel.send(chunks[i]);
       }
