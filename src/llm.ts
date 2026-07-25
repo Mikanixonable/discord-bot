@@ -199,8 +199,13 @@ async function streamRound(
   const toolMap = new Map<number, PartialToolCall>();
   let finishReason: string | null = null;
   let thinkingNotified = false;
+  let reasoningStart: number | null = null;
+  let reasoningLength = 0;
+  // 思考ステータスを表示するまでの猶予(短い思考ではステータスを出さない)
+  const THINKING_DELAY_MS = 10000;
+  const THINKING_MIN_LENGTH = 1000;
 
-  for (;;) {
+  for (; ;) {
     const { done, value } = await reader.read();
     if (done) break;
     sseBuffer += decoder.decode(value, { stream: true });
@@ -223,20 +228,28 @@ async function streamRound(
 
       const choice = (json as { choices?: unknown[] }).choices?.[0] as
         | {
-            delta?: { content?: unknown; reasoning_content?: unknown; tool_calls?: unknown };
-            finish_reason?: unknown;
-          }
+          delta?: { content?: unknown; reasoning_content?: unknown; tool_calls?: unknown };
+          finish_reason?: unknown;
+        }
         | undefined;
       const delta = choice?.delta;
 
-      // 思考(reasoning_content)が始まったら一度だけ「思考中」を通知する
+      // 思考(reasoning_content)が一定時間 or 一定量を超えたときだけ「思考中」を通知する
       if (
-        !thinkingNotified &&
         typeof delta?.reasoning_content === "string" &&
         delta.reasoning_content.length > 0
       ) {
-        thinkingNotified = true;
-        onStatus?.({ kind: "thinking" });
+        if (reasoningStart === null) reasoningStart = Date.now();
+        reasoningLength += delta.reasoning_content.length;
+
+        if (
+          !thinkingNotified &&
+          (Date.now() - reasoningStart >= THINKING_DELAY_MS ||
+            reasoningLength >= THINKING_MIN_LENGTH)
+        ) {
+          thinkingNotified = true;
+          onStatus?.({ kind: "thinking" });
+        }
       }
 
       if (typeof delta?.content === "string" && delta.content.length > 0) {
