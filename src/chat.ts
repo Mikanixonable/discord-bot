@@ -1,8 +1,10 @@
 import type { Message, TextBasedChannel } from "discord.js";
-import { chatCompletion, type ChatMessage } from "./llm.js";
+import { chatCompletion, chatCompletionWithTools, type ChatMessage } from "./llm.js";
 import { loadPersona } from "./persona.js";
 import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
+import { getWebSearchProvider } from "./tools/search/provider.js";
+import { webSearchTool, executeTool } from "./tools/search/index.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
@@ -59,10 +61,16 @@ export async function generateReply(triggerMessage: Message): Promise<string> {
   );
 
   const emojiList = getEmojiListForPrompt();
-  const systemContent =
+  let systemContent =
     emojiList.length > 0
       ? `${persona}\n\n使用可能なサーバー絵文字（文中にそのまま :name: と書けば実際の絵文字に変換される。バッククォートやコードブロックで囲まないこと。使いすぎない）: ${emojiList}`
       : persona;
+
+  // Web検索が有効なら、function callingで調べてから答えるよう指示を追加する
+  const searchProvider = getWebSearchProvider();
+  if (searchProvider) {
+    systemContent += `\n\n知らないことや最近の出来事、固有名詞などは web_search ツールで調べてから答える。検索結果が無関係なら使わない。ペルソナは維持する。`;
+  }
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemContent },
@@ -75,6 +83,9 @@ export async function generateReply(triggerMessage: Message): Promise<string> {
     },
   ];
 
+  if (searchProvider) {
+    return chatCompletionWithTools(messages, [webSearchTool], executeTool);
+  }
   return chatCompletion(messages);
 }
 
