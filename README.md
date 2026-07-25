@@ -56,6 +56,10 @@ copy .env.example .env
 | `LLM_BASE_URL` | OpenAI互換LLMエンドポイントのベースURL (既定: `http://localhost:11434/v1`) |
 | `LLM_MODEL` | 使用するモデル名 (既定: `llama3.1`) |
 | `LLM_API_KEY` | LLMのAPIキー (Ollamaでは通常不要。任意のダミー値でも可) |
+| `MESSAGE_DB_PATH` | メッセージ全文検索用SQLite DBのファイルパス (既定: `./data/messages.db`) |
+| `MESSAGE_SEARCH_RESULTS` | メッセージ検索結果の取得件数 (既定: 5) |
+| `BACKFILL_CHANNELS` | 起動時に履歴をバックフィルする対象チャンネル/スレッドIDのカンマ区切りリスト (任意、空なら自動返信チャンネルのみ) |
+| `BACKFILL_MAX` | 起動時バックフィルで取得するチャンネルごとの最大メッセージ数 (既定: 500) |
 
 ### 4. インストールと起動
 
@@ -137,6 +141,15 @@ Windows起動時にDocker Desktopを自動起動し、ボットも自動的に�
 ホストで直接 `npm run dev` する場合は `SEARXNG_URL=http://localhost:8088 を使い、SearXNG だけ `docker compose up -d searxng` で起動しておく。
 
 Tavily を使う場合は `SEARXNG_URL` を空にして `.env` に `TAVILY_API_KEY` を設定する (SearXNG 優先)。
+
+## サーバー内メッセージ検索
+
+ボットは投稿されたメッセージをローカルのSQLite (FTS5, トライグラムトークナイザ) にインデックスし、モデルがツール呼び出しでそれらを全文検索できます。日本語の部分一致検索にも対応しています。
+
+- インデックスDBは `MESSAGE_DB_PATH` (既定: `./data/messages.db`) に保存され、Docker運用時は `./data` のボリュームマウントによりコンテナ再構築後も永続化されます。
+- `MESSAGE_SEARCH_RESULTS` で検索結果の取得件数を調整できます (既定: 5件)。
+- メッセージ検索は常時有効で、Web検索のようなオン/オフの切り替えはありません。
+- `BACKFILL_CHANNELS` と `BACKFILL_MAX` により、起動時にチャンネル履歴をどこまでインデックスに取り込むかを制御できます。`BACKFILL_CHANNELS` が空の場合は `AUTO_REPLY_CHANNEL_IDS` のチャンネルのみが対象になります。
 
 ## ディレクトリ構成
 

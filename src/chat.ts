@@ -4,7 +4,7 @@ import { loadPersona } from "./persona.js";
 import { config } from "./config.js";
 import { getEmojiListForPrompt } from "./emoji.js";
 import { getWebSearchProvider } from "./tools/search/provider.js";
-import { webSearchTool, executeTool } from "./tools/search/index.js";
+import { getAvailableTools, executeTool } from "./tools/index.js";
 
 export const DISCORD_MESSAGE_LIMIT = 2000;
 
@@ -54,7 +54,7 @@ async function fetchRecentHistory(
  */
 async function buildRequest(
   triggerMessage: Message
-): Promise<{ messages: ChatMessage[]; tools: typeof webSearchTool[] }> {
+): Promise<{ messages: ChatMessage[]; tools: ReturnType<typeof getAvailableTools> }> {
   const persona = loadPersona();
   const history = await fetchRecentHistory(
     triggerMessage.channel,
@@ -69,10 +69,11 @@ async function buildRequest(
       : persona;
 
   // Web検索が有効なら、function callingで調べてから答えるよう指示を追加する
-  const searchProvider = getWebSearchProvider();
-  if (searchProvider) {
-    systemContent += `\n\n知らないことや最近の出来事、固有名詞などは web_search ツールで調べてから答える。検索結果が無関係なら使わない。ペルソナは維持する。`;
+  if (getWebSearchProvider()) {
+    systemContent += `\n\n知らないことや最近の出来事、固有名詞などは web_search ツールで調べてから答える。検索結果が無関係なら使わない。`;
   }
+  // メッセージ検索は常時有効
+  systemContent += `\n\nこのサーバーの過去の発言や話題の経緯は search_messages ツールで調べる。ツールを使っても不要な言及はせず、ペルソナは維持する。`;
 
   const messages: ChatMessage[] = [
     { role: "system", content: systemContent },
@@ -85,7 +86,7 @@ async function buildRequest(
     },
   ];
 
-  return { messages, tools: searchProvider ? [webSearchTool] : [] };
+  return { messages, tools: getAvailableTools() };
 }
 
 /**

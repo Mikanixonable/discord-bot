@@ -60,6 +60,14 @@ export interface Config {
   webSearchResults: number;
   // ツール呼び出しの最大ラウンド数
   maxToolRounds: number;
+  // メッセージ全文検索用SQLite DBのファイルパス
+  messageDbPath: string;
+  // メッセージ検索結果の取得件数
+  messageSearchResults: number;
+  // 起動時に履歴をバックフィルする対象チャンネル/スレッドID(空なら自動返信チャンネルのみ)
+  backfillChannels: Set<string>;
+  // 起動時バックフィルで取得するチャンネルごとの最大メッセージ数
+  backfillMax: number;
 }
 
 export const config: Config = {
@@ -81,4 +89,12 @@ export const config: Config = {
   webSearchResults: parsePositiveInt(process.env.WEB_SEARCH_RESULTS, 4),
   // ツール呼び出しの最大ラウンド数（デフォルト3）。MAX_TOOL_ROUNDSで変更可能
   maxToolRounds: parsePositiveInt(process.env.MAX_TOOL_ROUNDS, 3),
+  // メッセージ全文検索用SQLite DBのファイルパス。MESSAGE_DB_PATHで変更可能
+  messageDbPath: process.env.MESSAGE_DB_PATH || "./data/messages.db",
+  // メッセージ検索結果の取得件数（デフォルト5件）。MESSAGE_SEARCH_RESULTSで変更可能
+  messageSearchResults: parsePositiveInt(process.env.MESSAGE_SEARCH_RESULTS, 5),
+  // 起動時バックフィル対象チャンネル/スレッドID（空なら自動返信チャンネルのみ対象）
+  backfillChannels: parseChannelIds(process.env.BACKFILL_CHANNELS),
+  // 起動時バックフィルで取得するチャンネルごとの最大メッセージ数（デフォルト500）。BACKFILL_MAXで変更可能
+  backfillMax: parsePositiveInt(process.env.BACKFILL_MAX, 500),
 };

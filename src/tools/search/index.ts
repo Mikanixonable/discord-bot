@@ -42,13 +42,9 @@ function formatResults(query: string, results: SearchResult[]): string {
 }
 
 /**
- * モデルからのツール呼び出しを実行する。web_search のみ対応。
+ * web_search ツールを実行する。
  */
-export async function executeTool(name: string, args: unknown): Promise<string> {
-  if (name !== "web_search") {
-    return `未知のツール: ${name}`;
-  }
-
+export async function executeWebSearch(args: unknown): Promise<string> {
   const query = extractQuery(args);
   if (!query) {
     return "検索クエリが空です。";

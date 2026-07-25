@@ -9,6 +9,8 @@ services:
     volumes:
       # persona.mdをビルドなしで差し替え可能にするため config/ をボリュームマウント
       - ./config:/app/config:ro
+      # メッセージ検索用SQLite DB(./data/messages.db)をコンテナ再構築後も永続化するためマウント
+      - ./data:/app/data
     logging:
       driver: json-file
       options:
